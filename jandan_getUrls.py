@@ -15,6 +15,8 @@ logger = logging.getLogger(logger_name)
 
 DATE=20130101
 FLAG=0
+MIN_OO=500
+MAX_XX=MIN_OO + 100
 
 class ImgObj:
     imgId = ''
@@ -22,6 +24,7 @@ class ImgObj:
     imgOO = 0
     imgXX = 0
     imgName = ''
+    imgPage = 0
     def __init__(self, imgId, imgUrl, imgOO, imgXX, imgPage):
         self.imgId = imgId
         self.imgUrl = imgUrl
@@ -35,7 +38,7 @@ class ImgObj:
         else:
             postfix = postfix_list[-1]
         #文件名为oo数_xx数_page页数_ID号，例如：oo89_xx89_page1601_11211.jpg
-        self.imgName = 'oo'+imgOO+'_xx'+imgXX+'_page'+str(imgPage)+'_'+imgId+'.'+postfix
+        self.imgName = 'oo'+str(imgOO)+'_xx'+str(imgXX)+'_page'+str(imgPage)+'_'+imgId+'.'+postfix
 
 def url_open(url):
     global DATE, FLAG
@@ -54,7 +57,7 @@ def url_open(url):
 
 def get_page(url):
     html = url_open(url).decode('utf8')
-    pattern = r'<span class="current-comment-page">\[(\d{4})\]</span>' #正则表达式寻找页面地址
+    pattern = r'<span class="current-comment-page">\[(\d{0,9})\]</span>' #正则表达式寻找页面地址
     page = int(re.findall(pattern, html)[0])
     return page
 
@@ -70,10 +73,11 @@ def get_ImgObjs(page_url,page_num):
         for i in li_list:
             try:
                 img_id = i.split('\"')[0]
-                img_oo = i.split('<span id="cos_support-'+img_id+'">',2)[1].split('<',2)[0]
-                img_xx = i.split('<span id="cos_unsupport-'+img_id+'">',2)[1].split('<',2)[0]
-                #跳过oo小于100，或xx大于oo的图片
-                if (int(img_oo) < 600) | (int(img_xx) > int(img_oo)+100):
+                pattern = r'\[<span>(\d{0,9})</span>\]' #正则表达式寻找oo和xx数
+                img_oo = int(re.findall(pattern, i)[0])
+                img_xx = int(re.findall(pattern, i)[1])
+                #跳过oo小于MIN_OO，或xx大于MAX_XX的图片
+                if (int(img_oo) < MIN_OO) | (int(img_xx) > MAX_XX):
                     continue
                 #找到图片列表:包括<img>和<a>
                 img_list = i.split('<div class="text">',2)[1].split('<p',2)[1].split('</p>',2)[0].split('<br>')
@@ -200,6 +204,9 @@ def get_ImgDict(list_file,pages,page_num):
     return img_dict
 
 if __name__ == '__main__':
+    list_file=""
+    pages=0
+    page_num=0
     list_file = input("请输入列表文件名称(默认名 'url_list.txt'): " )
     pages = input("您想爬取多少页(默认为全部下载): ")
     page_num = input("您想从第几页开始下载（默认从最新一页开始）: ")
